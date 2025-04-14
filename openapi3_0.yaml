@@ -1,9 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Event API
-  version: 1.0.0
-  description: Automatically generated Swagger spec for event-related endpoints in
-    Directus
+  title: TKT Berlin API
+  version: 0.0.1
+  description: API-Dokumentation zum DataHub des Tourismusvereins Berlin Treptow-Köpenick e.V.
 paths:
   /items/event_occurrences:
     get:
