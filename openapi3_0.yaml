@@ -1,18 +1,19 @@
 openapi: 3.0.3
 info:
   title: TKT Berlin API
-  version: 0.0.1
+  version: 0.0.2
   description: API-Dokumentation zum DataHub des Tourismusvereins Berlin Treptow-Köpenick e.V.
 paths:
   /items/event_occurrences:
     get:
-      summary: Liste aller event_occurrences gefiltert nach event_id
+      summary: Liste aller Termine eines Events
+      description: Enhält alle Einzeltermine der Events sowie Informationen zu Status (active, postponed, cancelled). Termine werden automatisch aus der Wiederholungslogik eines Events generiert, können aber manuell überschrieben werden (updated_by_user = true).
       tags:
       - event_occurrences
       parameters:
       - name: filter[event][_eq]
         in: query
-        description: ID des verknüpften Events
+        description: ID des verknüpften Events (optional)
         required: false
         schema:
           type: string
@@ -24,9 +25,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/event_occurrences'
-  /items/events:
+  /items/events?fields=*.*:
     get:
-      summary: List all items in events
+      summary: Liste aller items in events (Hauptevents)
       tags:
       - events
       responses:
@@ -36,66 +37,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/events'
-  /items/events_translations:
-    get:
-      summary: List all items in events_translations
-      tags:
-      - events_translations
-      responses:
-        '200':
-          description: A list of events_translations items
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/events_translations'
-  /items/organizations:
-    get:
-      summary: List all items in organizations
-      tags:
-      - organizations
-      responses:
-        '200':
-          description: A list of organizations items
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/organizations'
-  /items/organizations_translations:
-    get:
-      summary: List all items in organizations_translations
-      tags:
-      - organizations_translations
-      responses:
-        '200':
-          description: A list of organizations_translations items
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/organizations_translations'
-  /items/places:
-    get:
-      summary: List all items in places
-      tags:
-      - places
-      responses:
-        '200':
-          description: A list of places items
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/places'
-  /items/places_translations:
-    get:
-      summary: List all items in places_translations
-      tags:
-      - places_translations
-      responses:
-        '200':
-          description: A list of places_translations items
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/places_translations'
   /items/events/{id}:
     get:
       summary: Ein einzelnes Event anhand der ID abrufen
@@ -116,7 +57,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/events'
+  /items/organizations?fields=*.*:
+    get:
+      summary: List all items in organizations
+      tags:
+      - organizations
+      responses:
+        '200':
+          description: A list of organizations items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/organizations'
+  /items/places?fields=*.*:
+    get:
+      summary: List all items in places
+      tags:
+      - places
+      responses:
+        '200':
+          description: A list of places items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/places'
+security:
+  - BearerAuth: []
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     event_occurrences:
       type: object
@@ -162,40 +134,47 @@ components:
           type: string
           format: date-time
         organization:
-          type: string
+          $ref: '#/components/schemas/organizations'
         translations:
-          type: string
+          $ref: '#/components/schemas/events_translations'
         type:
           type: string
+          description: Unterscheidung nach event, programm, führung
         categories:
           type: string
         start_date:
-          type: string
+          type: dateTime
+          description: Initiales Startdatum. Wird vor allem für die Wiederholungslogik verwendet und entsprechend immer für die Generierung des ersten Termins verwendet
         end_date:
-          type: string
+          type: dateTime
+          description: Initiales Endatum. Wird vor allem für die Wiederholungslogik verwendet und entsprechend immer für die Generierung des ersten Termins verwendet
         ticket_link:
           type: string
+          description: URL zu einem Ticketsystem im Format https://...
         featured_image:
           type: string
           format: uuid
+          description: BildURLs sind nach folgendem Schema aufgebaut - https://data.tkt-berlin.de/assets/[id]
         external_link:
           type: string
+          description: URL zu einer passenden Eventwebseite im Format https://...
         is_highlight:
           type: boolean
+          description: Gibt an ob eine Veranstaltung hervorgehoben werden soll.
         gallery:
-          type: string
+          type: array
+          description: BildURLs sind nach folgendem Schema aufgebaut - https://data.tkt-berlin.de/assets/[id]
         is_recurring:
           type: boolean
+          description: Gibt an, ob eine Wiederholungslogik greift oder nicht. Der erste Termin wird allerdings immer generiert, auch wenn is_recurring = false
         price:
           type: number
           format: float
         location:
-          type: string
-          format: uuid
-        recurrence_group:
-          type: string
+          $ref: '#/components/schemas/places'
         group_size_min:
           type: integer
+          description: Nur bei type = programm
         group_size_max:
           type: integer
         door_time:
@@ -430,4 +409,4 @@ components:
           type: string
 servers:
 - url: https://data.tkt-berlin.de
-  description: Produktivserver von TKT Berlin
+  description: DataHub von TKT Berlin
