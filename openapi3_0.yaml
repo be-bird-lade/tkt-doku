@@ -25,11 +25,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/event_occurrences'
-  /items/events?fields=*.*:
+  /items/events:
     get:
       summary: Liste aller items in events (Hauptevents)
       tags:
-      - events
+        - events
+      parameters:
+        - name: fields
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "*.*"
+          description: Gibt an, welche Felder geladen werden sollen. Z.B. `*.*` für alle Felder inkl. Relationen.
+        - name: filter[type][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter nach 'event', 'program' oder 'tour'
       responses:
         '200':
           description: A list of events items
@@ -57,11 +71,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/events'
-  /items/organizations?fields=*.*:
+  /items/event_categories/{id}:
+    get:
+      summary: Eine Event-Kategorie anhand der ID abrufen
+      tags:
+      - events
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Event-Kategorie
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Ein einzelnes Event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/event_categories'
+  /items/event_tags/{id}:
+    get:
+      summary: Einen Event-Tag anhand der ID abrufen
+      tags:
+      - events
+      parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Event-Tags
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Ein einzelnes Event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/event_tags'
+  /items/organizations:
     get:
       summary: List all items in organizations
       tags:
       - organizations
+      parameters:
+        - name: fields
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "*.*"
+          description: Gibt an, welche Felder geladen werden sollen. Z.B. `*.*` für alle Felder inkl. Relationen.
       responses:
         '200':
           description: A list of organizations items
@@ -69,11 +131,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/organizations'
-  /items/places?fields=*.*:
+  /items/places:
     get:
       summary: List all items in places
       tags:
       - places
+      parameters:
+        - name: fields
+          in: query
+          required: false
+          schema:
+            type: string
+            example: "*.*"
+          description: Gibt an, welche Felder geladen werden sollen. Z.B. `*.*` für alle Felder inkl. Relationen.
       responses:
         '200':
           description: A list of places items
@@ -98,21 +168,29 @@ components:
           format: uuid
         status:
           type: string
+          description: active, postponed oder cancelled
         event:
           type: string
           format: uuid
+          description: ID des zugehörigen Events
         start_date:
           type: string
+          format: dateTime
+          description: Startdatum inkl. Uhrzeit des Events
         end_date:
           type: string
+          format: dateTime
+          description: Enddatum inkl. Uhrzeit des Events (optional)
         door_time:
           type: string
+          format: time
+          description: Zeitangabe zum Einlass
         updated_by_user:
           type: boolean
+          description: Angabe, ob nachträglich manuell bearbeitet
         original_date:
           type: string
-        new_date:
-          type: string
+          description: Ursprünglich generiertes Datum
     events:
       type: object
       properties:
@@ -139,31 +217,38 @@ components:
           $ref: '#/components/schemas/events_translations'
         type:
           type: string
-          description: Unterscheidung nach event, programm, führung
+          description: Unterscheidung nach event, program, tour
         categories:
-          type: string
+          type: object
+          properties:
+            id:
+              type: integer
+              description: ID der zugehörigen Kategorie
         start_date:
-          type: dateTime
+          type: string
+          format: date-time
           description: Initiales Startdatum. Wird vor allem für die Wiederholungslogik verwendet und entsprechend immer für die Generierung des ersten Termins verwendet
         end_date:
-          type: dateTime
+          type: string
+          format: date-time
           description: Initiales Endatum. Wird vor allem für die Wiederholungslogik verwendet und entsprechend immer für die Generierung des ersten Termins verwendet
         ticket_link:
           type: string
           description: URL zu einem Ticketsystem im Format https://...
+          example: https://...
         featured_image:
-          type: string
-          format: uuid
-          description: BildURLs sind nach folgendem Schema aufgebaut - https://data.tkt-berlin.de/assets/[id]
+          $ref: '#/components/schemas/files'
         external_link:
           type: string
           description: URL zu einer passenden Eventwebseite im Format https://...
+          example: https://...
         is_highlight:
           type: boolean
           description: Gibt an ob eine Veranstaltung hervorgehoben werden soll.
         gallery:
           type: array
-          description: BildURLs sind nach folgendem Schema aufgebaut - https://data.tkt-berlin.de/assets/[id]
+          items: 
+            $ref: '#/components/schemas/files'
         is_recurring:
           type: boolean
           description: Gibt an, ob eine Wiederholungslogik greift oder nicht. Der erste Termin wird allerdings immer generiert, auch wenn is_recurring = false
@@ -174,41 +259,45 @@ components:
           $ref: '#/components/schemas/places'
         group_size_min:
           type: integer
-          description: Nur bei type = programm
+          description: Mindest Teilnehmerzahl. (Nur bei type = program || tour)
         group_size_max:
           type: integer
+          description: Maximale Teilnehmerzahl. (Nur bei type = program || tour)
         door_time:
           type: string
-        event_time:
-          type: string
+          format: time
+          example: "17:00:00"
+          description: Zeitangabe zum Einlass
         repeat_frequency:
           type: string
+          description: Auswahl Wiederholungsfrequenz nach ISO 8601 Duration Format (P1D, P2D, P3D, P1W, P2W, P3W, P1M, P2M, P3M, P1Y)
         by_day:
           type: string
+          description: Angabe Wiederholungslogik - Wiederholung an bestimmten Wochentagen (MO, TU, WE, TH, FR, SA, SU)
         by_month:
           type: string
+          description: Angabe Wiederholungslogik - Wiederholung nur in bestimmten Monaten (1 = Januar, 2 = Februar, ... 12 = Dezember)
         repeat_count:
           type: integer
+          description: Angabe Wiederholungslogik - Anzahl der Wiederholungen
         except_dates:
           type: string
+          description: Angabe Wiederholungslogik - Datumsangaben die von der Wiederholung ausgenommen sind
         occurrences:
           type: string
+          description: Generierte Einzeltermine eines Events
         by_month_week:
           type: string
+          description: Angabe Wiederholungslogik - Wiederholung in bestimmter Woche eines Monats (1 = 1. Woche, 2 = 2. Woche, ... 5 = 5. Woche)
         by_month_day:
           type: string
+          description: Angabe Wiederholungslogik - Wiederholung an bestimmten Tagen des Monats
         archived:
           type: boolean
+          description: Wenn true -> Event abgelaufen bze. alle Termine des Events abgelaufen
         monthly_recurring_type:
           type: string
-        layout_wrapper:
-          type: string
-        sidebar:
-          type: string
-        content_wrapper:
-          type: string
-        details:
-          type: string
+          description: Angabe Wiederholungslogik - Auswahl Wiederholungstyp bei monatlichen Wiederholungen (by_eventday, by_month_days, by_weekdays)
     events_translations:
       type: object
       properties:
@@ -236,6 +325,36 @@ components:
         ticket_info:
           type: string
         languages:
+          type: string
+    event_categories:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        translations:
+          $ref: '#/components/schemas/event_categories_translations'
+    event_categories_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        event_categories_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+    event_tags:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
           type: string
     organizations:
       type: object
@@ -407,6 +526,23 @@ components:
           type: string
         content:
           type: string
+    files:
+      type: object
+      description: BildURLs sind nach folgendem Schema aufgebaut - https://data.tkt-berlin.de/assets/[id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        filename_download:
+          type: string
+        with:
+          type: integer
+        height:
+          type: integer
 servers:
 - url: https://data.tkt-berlin.de
   description: DataHub von TKT Berlin
