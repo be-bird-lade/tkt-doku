@@ -263,6 +263,10 @@ components:
         group_size_max:
           type: integer
           description: Maximale Teilnehmerzahl. (Nur bei type = program || tour)
+        duration:
+          type: string
+        language:
+          $ref: '#/components/schemas/event_languages'
         door_time:
           type: string
           format: time
