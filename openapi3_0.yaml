@@ -356,6 +356,30 @@ components:
           format: uuid
         name:
           type: string
+    event_languages:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        translation:
+          $ref: '#/components/schemas/event_languages_translations'
+        flag:
+          $ref: '#/components/schemas/files'
+    event_languages_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        event_languages_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
     organizations:
       type: object
       properties:
