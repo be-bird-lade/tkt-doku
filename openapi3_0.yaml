@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: TKT Berlin API
-  version: 0.0.2
+  version: 0.0.3
   description: API-Dokumentation zum DataHub des Tourismusvereins Berlin Treptow-Köpenick e.V.
 paths:
   /items/event_occurrences:
@@ -263,8 +263,6 @@ components:
         group_size_max:
           type: integer
           description: Maximale Teilnehmerzahl. (Nur bei type = program || tour)
-        duration:
-          type: string
         language:
           $ref: '#/components/schemas/event_languages'
         door_time:
@@ -327,8 +325,6 @@ components:
         duration:
           type: string
         ticket_info:
-          type: string
-        languages:
           type: string
     event_categories:
       type: object
