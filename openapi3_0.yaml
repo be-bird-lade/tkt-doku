@@ -1,196 +1,635 @@
 openapi: 3.0.3
 info:
   title: TKT Berlin API
-  version: 0.0.3
-  description: API-Dokumentation zum DataHub des Tourismusvereins Berlin Treptow-Köpenick e.V.
+  version: 0.1.0
+  description: |
+    API-Dokumentation zum DataHub des Tourismusvereins Berlin Treptow-Köpenick e.V.
+
+    Basiert auf Directus als Headless CMS. Alle Endpunkte folgen dem Directus-REST-API-Schema.
+
+    ## Bild-URLs
+    Bilder sind nach folgendem Schema abrufbar:
+    `https://data.tkt-berlin.de/assets/{file_id}`
+
+    Optionale Transformationsparameter (Query-String):
+    - `width` / `height` – Größe in Pixel
+    - `fit` – `cover`, `contain`, `inside`, `outside`
+    - `quality` – 1–100 (JPEG/WebP)
+    - `format` – `jpg`, `png`, `webp`, `avif`
+
+    ## Authentifizierung
+    Alle Anfragen erfordern ein Bearer-Token im `Authorization`-Header.
+
+    ## Mehrsprachigkeit
+    Inhalte liegen in der Regel als Translations vor (Deutsch: `de-DE`, Englisch: `en-US`).
+    Translations können über `deep`-Filter auf eine Sprache eingeschränkt werden.
+
 paths:
-  /items/event_occurrences:
-    get:
-      summary: Liste aller Termine eines Events
-      description: Enhält alle Einzeltermine der Events sowie Informationen zu Status (active, postponed, cancelled). Termine werden automatisch aus der Wiederholungslogik eines Events generiert, können aber manuell überschrieben werden (updated_by_user = true).
-      tags:
-      - event_occurrences
-      parameters:
-      - name: filter[event][_eq]
-        in: query
-        description: ID des verknüpften Events (optional)
-        required: false
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: Gefilterte Liste von event_occurrences
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/event_occurrences'
+  # ──────────────────────────────────────────────
+  #  EVENTS
+  # ──────────────────────────────────────────────
   /items/events:
     get:
-      summary: Liste aller items in events (Hauptevents)
+      summary: Liste aller Events
+      description: |
+        Gibt alle Hauptevents zurück. Events können vom Typ `event`, `program` oder `tour` sein.
+        Enthält Relationen zu Kategorien, Organisationen, Orten, Sprachen, Übersetzungen, Galerien und Guides.
       tags:
         - events
       parameters:
-        - name: fields
-          in: query
-          required: false
-          schema:
-            type: string
-            example: "*.*"
-          description: Gibt an, welche Felder geladen werden sollen. Z.B. `*.*` für alle Felder inkl. Relationen.
+        - $ref: '#/components/parameters/fields'
         - name: filter[type][_eq]
           in: query
           required: false
           schema:
             type: string
-          description: Filter nach 'event', 'program' oder 'tour'
+            enum: [event, program, tour]
+          description: Filter nach Event-Typ
+        - name: filter[archived][_eq]
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter nach archivierten Events
+        - name: filter[is_highlight][_eq]
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Nur hervorgehobene Events
+        - name: filter[approval_status][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+          description: Filter nach Freigabestatus
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/deep'
       responses:
         '200':
-          description: A list of events items
+          description: Liste von Events
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/events'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/events'
+
   /items/events/{id}:
     get:
-      summary: Ein einzelnes Event anhand der ID abrufen
+      summary: Ein einzelnes Event abrufen
       tags:
-      - events
+        - events
       parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID des Events
-        schema:
-          type: string
-          format: uuid
+        - name: id
+          in: path
+          required: true
+          description: UUID des Events
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
       responses:
         '200':
           description: Ein einzelnes Event
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/events'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/events'
+
+  # ──────────────────────────────────────────────
+  #  EVENT OCCURRENCES
+  # ──────────────────────────────────────────────
+  /items/event_occurrences:
+    get:
+      summary: Liste aller Einzeltermine
+      description: |
+        Enthält alle generierten Einzeltermine der Events.
+        Termine werden automatisch aus der Wiederholungslogik eines Events generiert,
+        können aber manuell überschrieben werden (`updated_by_user = true`).
+        Status kann `active`, `cancelled`, `postponed` oder `archived` sein.
+      tags:
+        - event_occurrences
+      parameters:
+        - name: filter[event][_eq]
+          in: query
+          description: Filter nach Event-ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: filter[status][_eq]
+          in: query
+          description: Filter nach Status
+          required: false
+          schema:
+            type: string
+            enum: [active, cancelled, postponed, archived]
+        - name: filter[start_date][_gte]
+          in: query
+          description: Termine ab diesem Datum
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: filter[start_date][_lte]
+          in: query
+          description: Termine bis zu diesem Datum
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/fields'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        '200':
+          description: Liste von Einzelterminen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/event_occurrences'
+
+  # ──────────────────────────────────────────────
+  #  EVENT CATEGORIES
+  # ──────────────────────────────────────────────
+  /items/event_categories:
+    get:
+      summary: Liste aller Event-Kategorien
+      tags:
+        - event_categories
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Event-Kategorien
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/event_categories'
+
   /items/event_categories/{id}:
     get:
-      summary: Eine Event-Kategorie anhand der ID abrufen
+      summary: Eine Event-Kategorie abrufen
       tags:
-      - events
+        - event_categories
       parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID der Event-Kategorie
-        schema:
-          type: string
-          format: uuid
+        - name: id
+          in: path
+          required: true
+          description: UUID der Event-Kategorie
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
       responses:
         '200':
-          description: Ein einzelnes Event
+          description: Eine einzelne Event-Kategorie
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/event_categories'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/event_categories'
+
+  # ──────────────────────────────────────────────
+  #  EVENT TAGS
+  # ──────────────────────────────────────────────
+  /items/event_tags:
+    get:
+      summary: Liste aller Event-Tags
+      tags:
+        - event_tags
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Event-Tags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/event_tags'
+
   /items/event_tags/{id}:
     get:
-      summary: Einen Event-Tag anhand der ID abrufen
+      summary: Einen Event-Tag abrufen
       tags:
-      - events
+        - event_tags
       parameters:
-      - name: id
-        in: path
-        required: true
-        description: ID des Event-Tags
-        schema:
-          type: string
-          format: uuid
+        - name: id
+          in: path
+          required: true
+          description: UUID des Event-Tags
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
       responses:
         '200':
-          description: Ein einzelnes Event
+          description: Ein einzelner Event-Tag
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/event_tags'
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/event_tags'
+
+  # ──────────────────────────────────────────────
+  #  EVENT LANGUAGES
+  # ──────────────────────────────────────────────
+  /items/event_languages:
+    get:
+      summary: Liste aller Event-Sprachen
+      description: Sprachen, in denen Events angeboten werden (z.B. Führungen auf Englisch).
+      tags:
+        - event_languages
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Event-Sprachen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/event_languages'
+
+  /items/event_languages/{id}:
+    get:
+      summary: Eine Event-Sprache abrufen
+      tags:
+        - event_languages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID der Event-Sprache
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Eine einzelne Event-Sprache
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/event_languages'
+
+  # ──────────────────────────────────────────────
+  #  ORGANIZATIONS
+  # ──────────────────────────────────────────────
   /items/organizations:
     get:
-      summary: List all items in organizations
+      summary: Liste aller Organisationen
       tags:
-      - organizations
+        - organizations
       parameters:
-        - name: fields
-          in: query
-          required: false
-          schema:
-            type: string
-            example: "*.*"
-          description: Gibt an, welche Felder geladen werden sollen. Z.B. `*.*` für alle Felder inkl. Relationen.
+        - $ref: '#/components/parameters/fields'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
       responses:
         '200':
-          description: A list of organizations items
+          description: Liste von Organisationen
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/organizations'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/organizations'
+
+  /items/organizations/{id}:
+    get:
+      summary: Eine Organisation abrufen
+      tags:
+        - organizations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID der Organisation
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Eine einzelne Organisation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/organizations'
+
+  # ──────────────────────────────────────────────
+  #  PLACES
+  # ──────────────────────────────────────────────
   /items/places:
     get:
-      summary: List all items in places
+      summary: Liste aller Orte
       tags:
-      - places
+        - places
       parameters:
-        - name: fields
+        - $ref: '#/components/parameters/fields'
+        - name: filter[status][_eq]
           in: query
           required: false
           schema:
             type: string
-            example: "*.*"
-          description: Gibt an, welche Felder geladen werden sollen. Z.B. `*.*` für alle Felder inkl. Relationen.
+            enum: [published, draft, archived]
+          description: Filter nach Veröffentlichungsstatus
+        - name: filter[region][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter nach Region
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
       responses:
         '200':
-          description: A list of places items
+          description: Liste von Orten
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/places'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/places'
+
+  /items/places/{id}:
+    get:
+      summary: Einen Ort abrufen
+      tags:
+        - places
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID des Ortes
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Ein einzelner Ort
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/places'
+
+  # ──────────────────────────────────────────────
+  #  PERSONS
+  # ──────────────────────────────────────────────
+  /items/persons:
+    get:
+      summary: Liste aller Personen
+      description: Personen wie Guides, Fotografen, Kontaktpersonen etc.
+      tags:
+        - persons
+      parameters:
+        - $ref: '#/components/parameters/fields'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Liste von Personen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/persons'
+
+  /items/persons/{id}:
+    get:
+      summary: Eine Person abrufen
+      tags:
+        - persons
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID der Person
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Eine einzelne Person
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/persons'
+
+  # ──────────────────────────────────────────────
+  #  REGIONS
+  # ──────────────────────────────────────────────
+  /items/regions:
+    get:
+      summary: Liste aller Regionen
+      description: Regionen innerhalb von Treptow-Köpenick (z.B. Altstadt Köpenick, Friedrichshagen, etc.)
+      tags:
+        - regions
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Regionen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/regions'
+
+  # ──────────────────────────────────────────────
+  #  PLACES CATEGORIES
+  # ──────────────────────────────────────────────
+  /items/places_categories:
+    get:
+      summary: Liste aller Orts-Kategorien
+      description: Kategorien für Orte (z.B. Restaurant, Museum, Park) inkl. Schema.org-Typen.
+      tags:
+        - places_categories
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Orts-Kategorien
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/places_categories'
+
+  # ──────────────────────────────────────────────
+  #  OPENING HOURS PERIODS
+  # ──────────────────────────────────────────────
+  /items/opening_hours_periods:
+    get:
+      summary: Liste aller Öffnungszeiten-Perioden
+      description: |
+        Saisonale Öffnungszeiten für Orte. Jede Periode hat einen Gültigkeitszeitraum
+        (Monate, optional mit Tag und Jahr) und einen Wochenplan mit Zeitfenstern.
+        Ersetzt das alte `opening_hours`-Feld in Places (deprecated).
+      tags:
+        - opening_hours_periods
+      parameters:
+        - name: filter[place][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter nach Ort
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Öffnungszeiten-Perioden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/opening_hours_periods'
+
 security:
   - BearerAuth: []
+
 components:
+  # ──────────────────────────────────────────────
+  #  SECURITY
+  # ──────────────────────────────────────────────
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  # ──────────────────────────────────────────────
+  #  SHARED PARAMETERS
+  # ──────────────────────────────────────────────
+  parameters:
+    fields:
+      name: fields
+      in: query
+      required: false
+      schema:
+        type: string
+        example: "*.*"
+      description: |
+        Gibt an, welche Felder geladen werden sollen.
+        - `*` – Alle Felder der Collection
+        - `*.*` – Alle Felder inkl. direkte Relationen
+        - `*.*.*` – Drei Ebenen tief
+        - `field1,field2` – Nur bestimmte Felder
+    limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 100
+      description: Maximale Anzahl zurückgegebener Items
+    offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+      description: Anzahl zu überspringender Items (für Pagination)
+    sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        example: "-date_created"
+      description: |
+        Sortierung. Prefix `-` für absteigend. Mehrere Felder mit Komma getrennt.
+        Beispiel: `sort=-start_date,title`
+    deep:
+      name: deep
+      in: query
+      required: false
+      schema:
+        type: string
+      description: |
+        Filter und Sortierung für verschachtelte Relationen (JSON-Format).
+        Beispiel: `deep[translations][_filter][languages_code][_eq]=de-DE`
+
+  # ──────────────────────────────────────────────
+  #  SCHEMAS
+  # ──────────────────────────────────────────────
   schemas:
-    event_occurrences:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        status:
-          type: string
-          description: active, postponed oder cancelled
-        event:
-          type: string
-          format: uuid
-          description: ID des zugehörigen Events
-        start_date:
-          type: string
-          format: dateTime
-          description: Startdatum inkl. Uhrzeit des Events
-        end_date:
-          type: string
-          format: dateTime
-          description: Enddatum inkl. Uhrzeit des Events (optional)
-        door_time:
-          type: string
-          format: time
-          description: Zeitangabe zum Einlass
-        updated_by_user:
-          type: boolean
-          description: Angabe, ob nachträglich manuell bearbeitet
-        original_date:
-          type: string
-          description: Ursprünglich generiertes Datum
+    # ── EVENTS ──
     events:
       type: object
       properties:
@@ -211,95 +650,222 @@ components:
         date_updated:
           type: string
           format: date-time
-        organization:
-          $ref: '#/components/schemas/organizations'
-        translations:
-          $ref: '#/components/schemas/events_translations'
         type:
           type: string
-          description: Unterscheidung nach event, program, tour
-        categories:
-          type: object
-          properties:
-            id:
-              type: integer
-              description: ID der zugehörigen Kategorie
+          enum: [event, program, tour]
+          description: Art der Veranstaltung
         start_date:
           type: string
           format: date-time
-          description: Initiales Startdatum. Wird vor allem für die Wiederholungslogik verwendet und entsprechend immer für die Generierung des ersten Termins verwendet
+          description: Initiales Startdatum. Wird für die Wiederholungslogik und die Generierung des ersten Termins verwendet.
         end_date:
           type: string
           format: date-time
-          description: Initiales Endatum. Wird vor allem für die Wiederholungslogik verwendet und entsprechend immer für die Generierung des ersten Termins verwendet
+          description: Initiales Enddatum. Wird für die Wiederholungslogik und die Generierung des ersten Termins verwendet.
         ticket_link:
           type: string
-          description: URL zu einem Ticketsystem im Format https://...
-          example: https://...
+          description: URL zu einem Ticketsystem
+          example: https://tickets.example.com
         featured_image:
-          $ref: '#/components/schemas/files'
+          $ref: '#/components/schemas/directus_file'
         external_link:
           type: string
-          description: URL zu einer passenden Eventwebseite im Format https://...
-          example: https://...
+          description: URL zu einer passenden Eventwebseite
+          example: https://www.example.com/event
         is_highlight:
           type: boolean
-          description: Gibt an ob eine Veranstaltung hervorgehoben werden soll.
-        gallery:
-          type: array
-          items: 
-            $ref: '#/components/schemas/files'
+          description: Gibt an, ob eine Veranstaltung hervorgehoben werden soll
         is_recurring:
           type: boolean
-          description: Gibt an, ob eine Wiederholungslogik greift oder nicht. Der erste Termin wird allerdings immer generiert, auch wenn is_recurring = false
+          description: Gibt an, ob eine Wiederholungslogik greift. Der erste Termin wird immer generiert, auch wenn false.
         price:
           type: number
-          format: float
+          format: decimal
+          description: "(DEPRECATED) Preis. Verwende stattdessen `translations.price_display` und `translations.price_info`."
+          deprecated: true
         location:
-          $ref: '#/components/schemas/places'
+          description: "Zugehöriger Ort (M2O → places)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/places'
         group_size_min:
           type: integer
-          description: Mindest Teilnehmerzahl. (Nur bei type = program || tour)
+          description: Mindestteilnehmerzahl (nur bei type = program oder tour)
         group_size_max:
           type: integer
-          description: Maximale Teilnehmerzahl. (Nur bei type = program || tour)
-        language:
-          $ref: '#/components/schemas/event_languages'
+          description: Maximale Teilnehmerzahl (nur bei type = program oder tour)
         door_time:
           type: string
           format: time
           example: "17:00:00"
           description: Zeitangabe zum Einlass
-        repeat_frequency:
-          type: string
-          description: Auswahl Wiederholungsfrequenz nach ISO 8601 Duration Format (P1D, P2D, P3D, P1W, P2W, P3W, P1M, P2M, P3M, P1Y)
-        by_day:
-          type: string
-          description: Angabe Wiederholungslogik - Wiederholung an bestimmten Wochentagen (MO, TU, WE, TH, FR, SA, SU)
-        by_month:
-          type: string
-          description: Angabe Wiederholungslogik - Wiederholung nur in bestimmten Monaten (1 = Januar, 2 = Februar, ... 12 = Dezember)
-        repeat_count:
-          type: integer
-          description: Angabe Wiederholungslogik - Anzahl der Wiederholungen
-        except_dates:
-          type: string
-          description: Angabe Wiederholungslogik - Datumsangaben die von der Wiederholung ausgenommen sind
-        occurrences:
-          type: string
-          description: Generierte Einzeltermine eines Events
-        by_month_week:
-          type: string
-          description: Angabe Wiederholungslogik - Wiederholung in bestimmter Woche eines Monats (1 = 1. Woche, 2 = 2. Woche, ... 5 = 5. Woche)
-        by_month_day:
-          type: string
-          description: Angabe Wiederholungslogik - Wiederholung an bestimmten Tagen des Monats
         archived:
           type: boolean
-          description: Wenn true -> Event abgelaufen bze. alle Termine des Events abgelaufen
+          description: Wenn true, ist das Event abgelaufen bzw. alle Termine sind abgelaufen
+        internal_name:
+          type: string
+          readOnly: true
+          description: Automatisch befüllter interner Name (deutscher Titel aus Translations)
+        booking_type:
+          type: string
+          enum: [scheduled, on_request]
+          description: Art der Buchung (feste Termine oder auf Anfrage)
+        tour_type:
+          type: string
+          enum: [base, extension]
+          description: Nur bei type=tour – Basis-Tour oder Erweiterung
+        # ── Submission / Approval ──
+        approval_status:
+          type: string
+          enum: [pending, approved, rejected]
+          description: Status der Event-Freigabe (für extern eingereichte Events)
+        submission_source:
+          type: string
+          enum: [external_form, internal]
+          readOnly: true
+          description: Herkunft des Events
+        date_reviewed:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Zeitpunkt der Freigabe/Ablehnung
+        submitter_email:
+          type: string
+          description: E-Mail des Einreichers für Rückfragen
+        submitter_notes:
+          type: string
+          description: Anmerkungen des Einreichers
+        reviewer_notes:
+          type: string
+          description: Interne Notizen der Redaktion (nicht öffentlich)
+        proposed_location:
+          type: object
+          description: Vorschlag für neuen Ort (falls nicht in Liste vorhanden, JSON)
+        proposed_organization:
+          type: object
+          description: Vorschlag für neue Organisation (falls nicht in Liste vorhanden, JSON)
+        # ── Wiederholungslogik ──
+        repeat_frequency:
+          type: string
+          enum: [P1D, P2D, P3D, P1W, P2W, P3W, P1M, P2M, P3M, P1Y]
+          description: Wiederholungsfrequenz nach ISO 8601 Duration Format
+        by_day:
+          type: array
+          items:
+            type: string
+            enum: [MO, TU, WE, TH, FR, SA, SU]
+          description: Wiederholung an bestimmten Wochentagen
+        by_month:
+          type: array
+          items:
+            type: string
+          description: "Wiederholung nur in bestimmten Monaten (1–12)"
+        repeat_count:
+          type: integer
+          description: Anzahl der Wiederholungen
+        repeat_until:
+          type: string
+          format: date
+          description: "Optional: Datum, bis zu dem das Event wiederholt werden soll. Alternative zu repeat_count."
+        except_dates:
+          type: array
+          description: Datumsangaben, die von der Wiederholung ausgenommen sind
+          items:
+            type: object
+            properties:
+              except_single_date:
+                type: string
+                format: date
+        by_month_week:
+          type: array
+          items:
+            type: string
+          description: "Wiederholung in bestimmter Woche eines Monats (1–5)"
+        by_month_day:
+          type: array
+          items:
+            type: string
+          description: "Wiederholung an bestimmten Tagen des Monats (1–31)"
         monthly_recurring_type:
           type: string
-          description: Angabe Wiederholungslogik - Auswahl Wiederholungstyp bei monatlichen Wiederholungen (by_eventday, by_month_days, by_weekdays)
+          enum: [by_eventday, by_month_days, by_weekdays]
+          description: Wiederholungstyp bei monatlichen Wiederholungen
+        weekday_times:
+          type: array
+          description: |
+            Optional: Unterschiedliche Uhrzeiten für verschiedene Wochentage.
+            Wenn leer, werden die Standard-Zeiten aus start_date/end_date verwendet.
+          items:
+            type: object
+            properties:
+              days:
+                type: array
+                items:
+                  type: string
+                  enum: [MO, TU, WE, TH, FR, SA, SU]
+                description: Wochentage für diese Zeiten
+              months:
+                type: array
+                items:
+                  type: integer
+                description: "Optional: Einschränkung auf bestimmte Monate (1–12)"
+              start_time:
+                type: string
+                format: time
+              end_time:
+                type: string
+                format: time
+              door_time:
+                type: string
+                format: time
+        # ── Relationen ──
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/events_translations'
+        organization:
+          type: array
+          description: "Zugehörige Organisationen (M2M über organizations_events)"
+          items:
+            $ref: '#/components/schemas/organizations'
+        categories:
+          type: array
+          description: "Event-Kategorien (M2M über events_event_categories)"
+          items:
+            $ref: '#/components/schemas/event_categories'
+        occurrences:
+          type: array
+          description: "Generierte Einzeltermine (O2M → event_occurrences)"
+          items:
+            $ref: '#/components/schemas/event_occurrences'
+        language:
+          type: array
+          description: "Sprachen, in denen das Event angeboten wird (M2M über events_event_languages)"
+          items:
+            $ref: '#/components/schemas/event_languages'
+        gallery:
+          type: array
+          description: "Bildergalerie (M2M über events_files)"
+          items:
+            $ref: '#/components/schemas/directus_file'
+        guides:
+          type: array
+          description: "Zugeordnete Guides/Personen (M2M über events_persons)"
+          items:
+            $ref: '#/components/schemas/persons'
+        extensions:
+          type: array
+          description: "Erweiterungs-Events (M2M über events_extensions, nur bei tour_type=base)"
+          items:
+            $ref: '#/components/schemas/events'
+        is_extension_of:
+          type: array
+          description: "Basis-Events zu denen dieses Event eine Erweiterung ist (M2M über events_extensions)"
+          items:
+            $ref: '#/components/schemas/events'
+
+    # ── EVENTS TRANSLATIONS ──
     events_translations:
       type: object
       properties:
@@ -310,22 +876,85 @@ components:
           format: uuid
         languages_code:
           type: string
+          example: de-DE
         title:
           type: string
+          description: Titel des Events (required)
         slug:
           type: string
+          description: URL-Slug (required, auto-generiert)
         description:
           type: string
+          description: Ausführliche Beschreibung (HTML)
         short_description:
           type: string
-        tags:
-          type: string
+          description: Kurzbeschreibung (Plain Text)
         is_active:
           type: boolean
-        duration:
-          type: string
+          description: Gibt an, ob die Übersetzung aktiv/sichtbar ist
         ticket_info:
           type: string
+          description: Informationen zu Tickets (Plain Text)
+        duration:
+          type: string
+          description: Dauer-Angabe (z.B. "2 Stunden", "ca. 90 Min.")
+        meeting_point_info:
+          type: string
+          description: Informationen zum Treffpunkt
+        price_info:
+          type: string
+          description: Ausführliche Preisinformationen (HTML)
+        price_unit:
+          type: string
+          description: "Einheit des Preises (z.B. pro Person, pro Gruppe)"
+        price_display:
+          type: string
+          description: "Gut lesbare Preisangabe (z.B. ab 12 €, kostenlos, frei wählbar)"
+        tags:
+          type: array
+          description: "Event-Tags (M2M über events_translations_event_tags)"
+          items:
+            $ref: '#/components/schemas/event_tags'
+
+    # ── EVENT OCCURRENCES ──
+    event_occurrences:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, cancelled, postponed, archived]
+          description: Status des Einzeltermins
+        event:
+          description: "ID des zugehörigen Events (M2O → events)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/events'
+        start_date:
+          type: string
+          format: date-time
+          description: Startdatum inkl. Uhrzeit
+        end_date:
+          type: string
+          format: date-time
+          description: Enddatum inkl. Uhrzeit (optional)
+        door_time:
+          type: string
+          format: time
+          description: Zeitangabe zum Einlass
+        updated_by_user:
+          type: boolean
+          description: Angabe, ob der Termin nachträglich manuell bearbeitet wurde
+        original_date:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Ursprünglich generiertes Datum (vor manueller Änderung)
+
+    # ── EVENT CATEGORIES ──
     event_categories:
       type: object
       properties:
@@ -334,8 +963,28 @@ components:
           format: uuid
         sort:
           type: integer
+        user_created:
+          type: string
+          format: uuid
+        date_created:
+          type: string
+          format: date-time
+        user_updated:
+          type: string
+          format: uuid
+        date_updated:
+          type: string
+          format: date-time
         translations:
-          $ref: '#/components/schemas/event_categories_translations'
+          type: array
+          items:
+            $ref: '#/components/schemas/event_categories_translations'
+        events:
+          type: array
+          description: "Zugeordnete Events (M2M)"
+          items:
+            $ref: '#/components/schemas/events'
+
     event_categories_translations:
       type: object
       properties:
@@ -348,14 +997,30 @@ components:
           type: string
         name:
           type: string
+
+    # ── EVENT TAGS ──
     event_tags:
       type: object
       properties:
         id:
           type: string
           format: uuid
+        user_created:
+          type: string
+          format: uuid
+        date_created:
+          type: string
+          format: date-time
+        user_updated:
+          type: string
+          format: uuid
+        date_updated:
+          type: string
+          format: date-time
         name:
           type: string
+
+    # ── EVENT LANGUAGES ──
     event_languages:
       type: object
       properties:
@@ -364,10 +1029,13 @@ components:
           format: uuid
         sort:
           type: integer
-        translation:
-          $ref: '#/components/schemas/event_languages_translations'
         flag:
-          $ref: '#/components/schemas/files'
+          $ref: '#/components/schemas/directus_file'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/event_languages_translations'
+
     event_languages_translations:
       type: object
       properties:
@@ -380,6 +1048,8 @@ components:
           type: string
         name:
           type: string
+
+    # ── ORGANIZATIONS ──
     organizations:
       type: object
       properties:
@@ -398,19 +1068,25 @@ components:
         date_updated:
           type: string
           format: date-time
-        translations:
-          type: string
         name:
           type: string
-        type:
+          description: Name der Organisation (required)
+        slug:
           type: string
-          format: uuid
+          description: URL-Slug (required)
+        type:
+          description: "Organisationstyp (M2O → organization_type)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/organization_type'
         phone:
           type: string
         email:
           type: string
         website:
           type: string
+          description: Website-URL (ohne https://)
         address:
           type: string
         postal_code:
@@ -418,31 +1094,35 @@ components:
         city:
           type: string
         logo:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/directus_file'
         featured_image:
-          type: string
-          format: uuid
-        jobs:
-          type: string
-        persons:
-          type: string
-        places:
-          type: string
-        events:
-          type: string
+          $ref: '#/components/schemas/directus_file'
         not_berlin:
           type: boolean
-        address_data:
-          type: string
-        layout_wrapper:
-          type: string
-        sidebar:
-          type: string
-        content_wrapper:
-          type: string
-        connections:
-          type: string
+          description: Gibt an, ob die Organisation außerhalb Berlins liegt
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/organizations_translations'
+        events:
+          type: array
+          description: "Zugeordnete Events (M2M über organizations_events)"
+          items:
+            $ref: '#/components/schemas/events'
+        jobs:
+          type: array
+          description: "Stellenanzeigen (M2M über organizations_jobs)"
+        places:
+          type: array
+          description: "Zugeordnete Orte (O2M)"
+          items:
+            $ref: '#/components/schemas/places'
+        persons:
+          type: array
+          description: "Zugeordnete Personen (O2M über junction_organizations_persons)"
+          items:
+            $ref: '#/components/schemas/persons'
+
     organizations_translations:
       type: object
       properties:
@@ -455,6 +1135,32 @@ components:
           type: string
         short_description:
           type: string
+
+    organization_type:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/organization_type_translations'
+
+    organization_type_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        organization_type_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        Name:
+          type: string
+
+    # ── PLACES ──
     places:
       type: object
       properties:
@@ -473,65 +1179,122 @@ components:
         date_updated:
           type: string
           format: date-time
-        lat:
-          type: string
-        long:
-          type: string
-        place_id:
-          type: string
-        rating:
-          type: string
         status:
           type: string
-        featured_image:
-          type: string
-          format: uuid
+          enum: [published, draft, archived]
+          description: Veröffentlichungsstatus
         name:
           type: string
+          description: Name des Ortes (required)
         slug:
+          type: string
+          description: URL-Slug (required)
+        address:
+          type: string
+        postal_code:
           type: string
         city:
           type: string
         phone:
           type: string
+        phone_clean:
+          type: string
+          readOnly: true
+          description: "Automatisch generiert: Telefonnummer ohne Leerzeichen/Sonderzeichen für tel:-Links"
         email:
           type: string
         weblink:
           type: string
-        address:
+        featured_image:
+          $ref: '#/components/schemas/directus_file'
+        place_id:
           type: string
-        postal_code:
+          readOnly: true
+          description: Google Places ID
+        rating:
           type: string
-        organization:
+          readOnly: true
+          description: Google-Bewertung
+        location:
+          type: object
+          readOnly: true
+          description: "GeoJSON Point (geometry.Point) – Koordinaten des Ortes"
+          properties:
+            type:
+              type: string
+              example: Point
+            coordinates:
+              type: array
+              items:
+                type: number
+              example: [13.5804, 52.4433]
+        manual_location:
+          type: boolean
+          description: Wenn true, wird die Location manuell gesetzt (kein Google-Sync)
+        lat:
           type: string
-        translations:
+          readOnly: true
+          deprecated: true
+          description: "(DEPRECATED) Verwende stattdessen `location.coordinates`"
+        long:
           type: string
-        jobs:
-          type: string
-        layout_wrapper:
-          type: string
-        sidebar:
-          type: string
-        content_wrapper:
-          type: string
-        address_data:
-          type: string
-        opening_data:
-          type: string
-        opening_hours:
-          type: string
-        content_data:
-          type: string
-        categories:
-          type: string
-        routes:
-          type: string
-        events:
-          type: string
-        connections:
-          type: string
+          readOnly: true
+          deprecated: true
+          description: "(DEPRECATED) Verwende stattdessen `location.coordinates`"
         is_not_berlin:
           type: boolean
+        organization:
+          description: "Zugehörige Organisation (M2O → organizations)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/organizations'
+        region:
+          description: "Zugehörige Region (M2O → regions)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/regions'
+        google_sync:
+          type: boolean
+          description: Gibt an, ob Daten mit Google Places synchronisiert werden
+        google_last_sync:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Zeitpunkt des letzten Google-Syncs
+        opening_hours:
+          type: array
+          deprecated: true
+          description: "(DEPRECATED) Verwende stattdessen `opening_hours_periods`"
+          items:
+            type: object
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/places_translations'
+        categories:
+          type: array
+          description: "Orts-Kategorien (M2M über places_places_categories)"
+          items:
+            $ref: '#/components/schemas/places_categories'
+        opening_hours_periods:
+          type: array
+          description: "Saisonale Öffnungszeiten (O2M → opening_hours_periods)"
+          items:
+            $ref: '#/components/schemas/opening_hours_periods'
+        events:
+          type: array
+          description: "Events an diesem Ort (O2M)"
+          items:
+            $ref: '#/components/schemas/events'
+        routes:
+          type: array
+          description: "Routen, die diesen Ort einschließen (M2M über routes_places)"
+        jobs:
+          type: array
+          description: "Stellenanzeigen an diesem Ort (M2M über jobs_places)"
+
     places_translations:
       type: object
       properties:
@@ -544,15 +1307,244 @@ components:
           type: string
         active:
           type: boolean
+          description: Gibt an, ob diese Übersetzung aktiv ist
         name:
           type: string
+          description: Übersetzter Name (falls anders als Google-Name)
         short_description:
           type: string
         content:
           type: string
-    files:
+          description: Ausführliche Beschreibung (HTML)
+
+    # ── PLACES CATEGORIES ──
+    places_categories:
       type: object
-      description: BildURLs sind nach folgendem Schema aufgebaut - https://data.tkt-berlin.de/assets/[id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        theme:
+          description: "Zugehöriges Theme (M2O → themes)"
+          type: string
+          format: uuid
+        schema_type:
+          type: string
+          enum:
+            - TouristAttraction
+            - Restaurant
+            - CafeOrCoffeeShop
+            - BarOrPub
+            - IceCreamShop
+            - Hotel
+            - Museum
+            - Park
+            - Church
+            - PerformingArtsTheater
+            - ArtGallery
+            - EventVenue
+            - Beach
+            - Playground
+            - Library
+            - Store
+            - BoatTerminal
+            - LocalBusiness
+          description: Schema.org Type für SEO/Google Rich Results
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/places_categories_translations'
+
+    places_categories_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        places_categories_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+
+    # ── OPENING HOURS PERIODS ──
+    opening_hours_periods:
+      type: object
+      description: |
+        Saisonale Öffnungszeiten für einen Ort. Jede Periode hat einen Gültigkeitszeitraum
+        und einen Wochenplan mit Zeitfenstern pro Tag.
+      properties:
+        id:
+          type: string
+          format: uuid
+        place:
+          description: "Zugehöriger Ort (M2O → places)"
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum: [manual, google]
+          description: Datenquelle (manuell oder Google Places)
+        sort:
+          type: integer
+        valid_from_month:
+          type: integer
+          description: "Ab welchem Monat gelten diese Öffnungszeiten (1–12)"
+        valid_from_day:
+          type: integer
+          description: "Optional: Ab welchem Tag (leer = 1. des Monats)"
+        valid_to_month:
+          type: integer
+          description: "Bis zu welchem Monat gelten diese Öffnungszeiten (1–12)"
+        valid_to_day:
+          type: integer
+          description: "Optional: Bis zu welchem Tag (leer = letzter des Monats)"
+        valid_from_year:
+          type: integer
+          description: "Optional: Nur für einmalige Perioden (z.B. Renovierung 2025). Leer = jährlich wiederkehrend."
+        hint:
+          type: string
+          description: Freitext-Hinweis zu den Öffnungszeiten
+        schedule:
+          type: array
+          description: Wochenplan mit Öffnungszeiten pro Tag
+          items:
+            type: object
+            properties:
+              weekday:
+                type: string
+                enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+              status:
+                type: string
+                enum: [open, closed]
+              slots:
+                type: array
+                description: "Zeitfenster (z.B. 9:00–12:00 und 14:00–18:00)"
+                items:
+                  type: object
+                  properties:
+                    open:
+                      type: string
+                      example: "09:00"
+                    close:
+                      type: string
+                      example: "18:00"
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/opening_hours_periods_translations'
+
+    opening_hours_periods_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        opening_hours_periods_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        label:
+          type: string
+          description: "Bezeichnung der Periode (z.B. Sommeröffnungszeiten)"
+        formatted_schedule:
+          type: object
+          description: "Strukturierte, mehrsprachige Ausgabe der Öffnungszeiten als JSON"
+
+    # ── PERSONS ──
+    persons:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_created:
+          type: string
+          format: uuid
+        date_created:
+          type: string
+          format: date-time
+        user_updated:
+          type: string
+          format: uuid
+        date_updated:
+          type: string
+          format: date-time
+        first_name:
+          type: string
+        last_name:
+          type: string
+        slug:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        mobil:
+          type: string
+        website:
+          type: string
+          description: Website der Person
+        gender:
+          type: string
+          enum: [male, female, non-binary, prefer-not-to-say]
+        title:
+          type: string
+          enum: [none, Dr., Prof., "Prof. Dr.", Dipl.-Ing., Dipl.-Kfm., Mag., B.Sc., M.Sc., B.A., M.A., LL.M., RA, Dr. med., PD, Univ.-Prof.]
+        photo:
+          $ref: '#/components/schemas/directus_file'
+        person_type:
+          type: array
+          items:
+            type: string
+          description: "Kategorien zur Filterung (z.B. Fotograf, Musiker, Redner)"
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/persons_translations'
+        organizations:
+          type: array
+          description: "Zugeordnete Organisationen (O2M über junction_organizations_persons)"
+
+    persons_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        persons_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        bio:
+          type: string
+          description: Biografie (HTML)
+        description:
+          type: string
+          description: "Beschreibung (HTML) – z.B. für Redner:innen, Künstler:innen"
+
+    # ── REGIONS ──
+    regions:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        name:
+          type: string
+        places:
+          type: array
+          description: "Orte in dieser Region (O2M)"
+          items:
+            $ref: '#/components/schemas/places'
+
+    # ── FILES ──
+    directus_file:
+      type: object
+      description: "Bild-URLs: https://data.tkt-berlin.de/assets/{id}"
       properties:
         id:
           type: string
@@ -563,10 +1555,11 @@ components:
           type: string
         filename_download:
           type: string
-        with:
+        width:
           type: integer
         height:
           type: integer
+
 servers:
-- url: https://data.tkt-berlin.de
-  description: DataHub von TKT Berlin
+  - url: https://data.tkt-berlin.de
+    description: DataHub von TKT Berlin
