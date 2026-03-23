@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: TKT Berlin API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     API-Dokumentation zum DataHub des Tourismusvereins Berlin Treptow-Köpenick e.V.
 
@@ -21,7 +21,7 @@ info:
     Alle Anfragen erfordern ein Bearer-Token im `Authorization`-Header.
 
     ## Mehrsprachigkeit
-    Inhalte liegen in der Regel als Translations vor (Deutsch: `de-DE`, Englisch: `en-US`).
+    Inhalte liegen in der Regel als Translations vor (Deutsch: `de-DE`, Englisch: `en-GB`).
     Translations können über `deep`-Filter auf eine Sprache eingeschränkt werden.
 
 paths:
@@ -476,6 +476,249 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/persons'
+
+  # ──────────────────────────────────────────────
+  #  ROUTES
+  # ──────────────────────────────────────────────
+  /items/routes:
+    get:
+      summary: Liste aller Routen
+      description: |
+        Wander-, Rad- und Wasserrouten durch Treptow-Köpenick.
+        Enthält Geometrie (LineString), Schwierigkeitsgrad, Wegpunkte und POIs.
+      tags:
+        - routes
+      parameters:
+        - $ref: '#/components/parameters/fields'
+        - name: filter[status][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [published, draft, archived]
+          description: Filter nach Veröffentlichungsstatus
+        - name: filter[route_type][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter nach Routentyp
+        - name: filter[difficulty][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter nach Schwierigkeitsgrad
+        - name: filter[is_lmb_route][_eq]
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter nach LMB-Routen
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        '200':
+          description: Liste von Routen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/routes'
+
+  /items/routes/{id}:
+    get:
+      summary: Eine Route abrufen
+      tags:
+        - routes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID der Route
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Eine einzelne Route
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/routes'
+
+  # ──────────────────────────────────────────────
+  #  ROUTE TYPES
+  # ──────────────────────────────────────────────
+  /items/route_types:
+    get:
+      summary: Liste aller Routentypen
+      description: "Typen von Routen (z.B. Wanderroute, Radroute, Wasserroute)"
+      tags:
+        - route_types
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Routentypen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/route_types'
+
+  # ──────────────────────────────────────────────
+  #  ROUTE DIFFICULTY
+  # ──────────────────────────────────────────────
+  /items/route_difficulty:
+    get:
+      summary: Liste aller Schwierigkeitsgrade
+      tags:
+        - route_difficulty
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Schwierigkeitsgraden
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/route_difficulty'
+
+  # ──────────────────────────────────────────────
+  #  JOBS
+  # ──────────────────────────────────────────────
+  /items/jobs:
+    get:
+      summary: Liste aller Stellenanzeigen
+      description: |
+        Stellenanzeigen von Organisationen im Bezirk. Enthält Relationen zu
+        Organisationen, Standorten, Beschäftigungsarten und Bewerbungen.
+      tags:
+        - jobs
+      parameters:
+        - $ref: '#/components/parameters/fields'
+        - name: filter[status][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [published, draft, archived]
+          description: Filter nach Veröffentlichungsstatus
+        - name: filter[employment_category][_eq]
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter nach Beschäftigungskategorie
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        '200':
+          description: Liste von Stellenanzeigen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/jobs'
+
+  /items/jobs/{id}:
+    get:
+      summary: Eine Stellenanzeige abrufen
+      tags:
+        - jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID der Stellenanzeige
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Eine einzelne Stellenanzeige
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/jobs'
+
+  # ──────────────────────────────────────────────
+  #  EMPLOYMENT TYPES
+  # ──────────────────────────────────────────────
+  /items/employment_type:
+    get:
+      summary: Liste aller Beschäftigungsarten
+      description: "Arten der Beschäftigung (z.B. Vollzeit, Teilzeit, Minijob)"
+      tags:
+        - employment_type
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Beschäftigungsarten
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/employment_type'
+
+  # ──────────────────────────────────────────────
+  #  EMPLOYMENT CATEGORIES
+  # ──────────────────────────────────────────────
+  /items/employment_categories:
+    get:
+      summary: Liste aller Beschäftigungskategorien
+      tags:
+        - employment_categories
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Beschäftigungskategorien
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/employment_categories'
 
   # ──────────────────────────────────────────────
   #  REGIONS
@@ -1540,6 +1783,547 @@ components:
           description: "Orte in dieser Region (O2M)"
           items:
             $ref: '#/components/schemas/places'
+
+    # ── ROUTES ──
+    routes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [published, draft, archived]
+        sort:
+          type: integer
+        user_created:
+          type: string
+          format: uuid
+        date_created:
+          type: string
+          format: date-time
+        user_updated:
+          type: string
+          format: uuid
+        date_updated:
+          type: string
+          format: date-time
+        distance:
+          type: number
+          format: decimal
+          description: "Distanz in km"
+        time_estimate:
+          type: integer
+          description: "Geschätzte Dauer in Minuten"
+        route_color:
+          type: string
+          description: "Farbe der Route (HEX)"
+        featured_image:
+          $ref: '#/components/schemas/directus_file'
+        geometry:
+          type: object
+          description: "GeoJSON LineString – Streckenverlauf der Route"
+          properties:
+            type:
+              type: string
+              example: LineString
+            coordinates:
+              type: array
+              items:
+                type: array
+                items:
+                  type: number
+              example: [[13.58, 52.44], [13.59, 52.45]]
+        komoot_link:
+          type: string
+          description: Link zur Route auf Komoot
+        is_lmb_route:
+          type: boolean
+          description: Gibt an, ob es sich um eine LMB-Route handelt
+        difficulty:
+          description: "Schwierigkeitsgrad (M2O → route_difficulty)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/route_difficulty'
+        route_type:
+          description: "Routentyp (M2O → route_types)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/route_types'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/routes_translations'
+        gallery:
+          type: array
+          description: "Bildergalerie (M2M über routes_files)"
+          items:
+            $ref: '#/components/schemas/directus_file'
+        waypoints:
+          type: array
+          description: |
+            Wegpunkte der Route (M2M über routes_places).
+            Jeder Wegpunkt kann eigene Kategorien, Überschriften und Beschreibungen haben.
+          items:
+            $ref: '#/components/schemas/routes_places'
+        route_pois:
+          type: array
+          description: "Points of Interest entlang der Route (M2M über routes_places_pois)"
+          items:
+            $ref: '#/components/schemas/routes_places_pois'
+
+    routes_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        routes_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        title:
+          type: string
+          description: Titel der Route (required)
+        slug:
+          type: string
+          description: URL-Slug (required)
+        subtitle:
+          type: string
+          description: Untertitel
+        short_description:
+          type: string
+          description: Kurzbeschreibung (Plain Text)
+        description:
+          type: string
+          description: Ausführliche Beschreibung (HTML)
+        route_intro:
+          type: string
+          description: Einführungstext (Plain Text)
+
+    routes_places:
+      type: object
+      description: "Wegpunkt einer Route (Junction: routes ↔ places)"
+      properties:
+        id:
+          type: integer
+        routes_id:
+          type: string
+          format: uuid
+        places_id:
+          description: "Der verknüpfte Ort"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/places'
+        sort:
+          type: integer
+        waypoint_category:
+          type: array
+          description: "POI-Kategorien für diesen Wegpunkt (M2M → routePOI_types)"
+          items:
+            $ref: '#/components/schemas/routePOI_types'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/routes_places_translations'
+
+    routes_places_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        routes_places_id:
+          type: integer
+        languages_code:
+          type: string
+        alt_headline:
+          type: string
+          description: Alternative Überschrift für den Wegpunkt
+        alt_subheadline:
+          type: string
+          description: Alternative Unterüberschrift
+        alt_description:
+          type: string
+          description: Alternative Beschreibung (HTML)
+
+    routes_places_pois:
+      type: object
+      description: "POI entlang einer Route (Junction: routes ↔ places)"
+      properties:
+        id:
+          type: integer
+        routes_id:
+          type: string
+          format: uuid
+        places_id:
+          description: "Der verknüpfte Ort"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/places'
+        poi_type:
+          type: array
+          description: "POI-Kategorien (M2M → routePOI_types)"
+          items:
+            $ref: '#/components/schemas/routePOI_types'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/routes_places_pois_translations'
+
+    routes_places_pois_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        routes_places_pois_id:
+          type: integer
+        languages_code:
+          type: string
+        alt_headline:
+          type: string
+          description: Alternative Überschrift für den POI
+        alt_subheadline:
+          type: string
+          description: Alternative Unterüberschrift
+        alt_description:
+          type: string
+          description: Alternative Beschreibung (HTML)
+
+    # ── ROUTE TYPES ──
+    route_types:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        icon:
+          type: string
+          description: Material Icon Name
+        key:
+          type: string
+          description: Technischer Schlüssel
+        theme:
+          type: string
+          format: uuid
+          description: "Zugehöriges Theme (M2O → themes)"
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/route_types_translations'
+
+    route_types_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        route_types_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        title:
+          type: string
+
+    # ── ROUTE DIFFICULTY ──
+    route_difficulty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/route_difficulty_translations'
+
+    route_difficulty_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        route_difficulty_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        title:
+          type: string
+
+    # ── ROUTE POI TYPES ──
+    routePOI_types:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        svg_icon:
+          type: string
+          description: SVG-Code des Icons
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/routePOI_types_translations'
+
+    routePOI_types_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        routePOI_types_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+
+    # ── JOBS ──
+    jobs:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [published, draft, archived]
+        user_created:
+          type: string
+          format: uuid
+        date_created:
+          type: string
+          format: date-time
+        user_updated:
+          type: string
+          format: uuid
+        date_updated:
+          type: string
+          format: date-time
+        application_link:
+          type: string
+          description: "Optional: Externer Bewerbungslink (falls nicht über internes Formular)"
+        application_deadline:
+          type: string
+          format: date
+          description: Bewerbungsfrist
+        featured_image:
+          $ref: '#/components/schemas/directus_file'
+        employment_category:
+          description: "Beschäftigungskategorie (M2O → employment_categories)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/employment_categories'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/jobs_translations'
+        organization:
+          type: array
+          description: "Zugehörige Organisationen (M2M über organizations_jobs)"
+          items:
+            $ref: '#/components/schemas/organizations'
+        employment_type:
+          type: array
+          description: "Beschäftigungsarten (M2M über jobs_employment_type, z.B. Vollzeit, Teilzeit)"
+          items:
+            $ref: '#/components/schemas/employment_type'
+        job_location:
+          type: array
+          description: "Arbeitsorte (M2M über jobs_places)"
+          items:
+            $ref: '#/components/schemas/places'
+        applications:
+          type: array
+          description: "Eingegangene Bewerbungen (O2M → job_applications)"
+          items:
+            $ref: '#/components/schemas/job_applications'
+
+    jobs_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobs_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        title:
+          type: string
+          description: Stellenbezeichnung (required)
+        slug:
+          type: string
+          description: URL-Slug (required)
+        is_active:
+          type: boolean
+          description: Gibt an, ob die Übersetzung aktiv ist
+        description:
+          type: string
+          description: Stellenbeschreibung (HTML)
+        salary:
+          type: string
+          description: Gehaltsangabe
+        requirements:
+          type: string
+          description: Anforderungen (HTML)
+        skills:
+          type: string
+          description: Gewünschte Fähigkeiten (HTML)
+        benefits:
+          type: string
+          description: Benefits / Was wir bieten (HTML)
+
+    # ── EMPLOYMENT TYPE ──
+    employment_type:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/employment_type_translations'
+
+    employment_type_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        employment_type_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+
+    # ── EMPLOYMENT CATEGORIES ──
+    employment_categories:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        color:
+          type: string
+          format: uuid
+          description: "Zugehöriges Theme für Farbgebung (M2O → themes)"
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/employment_categories_translations'
+
+    employment_categories_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        employment_categories_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+
+    # ── JOB TITLES ──
+    job_titles:
+      type: object
+      description: "Vordefinierte Berufsbezeichnungen (z.B. für Personen/Organisationen-Zuordnung)"
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        internal_name:
+          type: string
+          readOnly: true
+          description: Automatisch aus deutscher Übersetzung synchronisiert
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/job_titles_translations'
+
+    job_titles_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        job_titles_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+          description: Berufsbezeichnung (generisch/männlich)
+        name_female:
+          type: string
+          description: Berufsbezeichnung (weiblich)
+        name_nonbinary:
+          type: string
+          description: "Berufsbezeichnung (geschlechtsneutral)"
+
+    # ── JOB APPLICATIONS ──
+    job_applications:
+      type: object
+      description: "Bewerbungen über das Website-Formular (Backup-Zwecke)"
+      properties:
+        id:
+          type: string
+          format: uuid
+        date_created:
+          type: string
+          format: date-time
+        vorname:
+          type: string
+          description: Vorname des Bewerbers (required)
+        nachname:
+          type: string
+          description: Nachname des Bewerbers (required)
+        email:
+          type: string
+          description: E-Mail-Adresse (required)
+        telefon:
+          type: string
+        job_name:
+          type: string
+          readOnly: true
+          description: Name der Stelle (aus Formular übernommen)
+        job_contact:
+          type: string
+          readOnly: true
+          description: Kontakt-E-Mail der Stelle
+        consent:
+          type: boolean
+          readOnly: true
+          description: Datenschutz-Einwilligung
+        job:
+          description: "Zugehörige Stelle (M2O → jobs)"
+          type: string
+          format: uuid
+        attachments:
+          type: array
+          description: "Angehängte Dateien (M2M über job_applications_files)"
+          items:
+            $ref: '#/components/schemas/directus_file'
 
     # ── FILES ──
     directus_file:
