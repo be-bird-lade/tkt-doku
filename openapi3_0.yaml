@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: TKT Berlin API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     API-Dokumentation zum DataHub des Tourismusvereins Berlin Treptow-Köpenick e.V.
 
@@ -476,6 +476,107 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/persons'
+
+  # ──────────────────────────────────────────────
+  #  DEPARTMENTS
+  # ──────────────────────────────────────────────
+  /items/department:
+    get:
+      summary: Liste aller Abteilungen
+      description: |
+        Abteilungen innerhalb von Organisationen. Werden über die Junction
+        `junction_organizations_persons` einer Person-Organisations-Zuordnung zugewiesen.
+        Können optional mit einem Ort (Place) verknüpft sein.
+      tags:
+        - departments
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Abteilungen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/department'
+
+  /items/department/{id}:
+    get:
+      summary: Eine Abteilung abrufen
+      tags:
+        - departments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID der Abteilung
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Eine einzelne Abteilung
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/department'
+
+  # ──────────────────────────────────────────────
+  #  PERSON ROLES
+  # ──────────────────────────────────────────────
+  /items/person_roles:
+    get:
+      summary: Liste aller Personen-Rollen
+      description: "Rollen, die Personen zugeordnet werden können (z.B. Fotograf, Musiker, Redner)."
+      tags:
+        - person_roles
+      parameters:
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Liste von Personen-Rollen
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/person_roles'
+
+  /items/person_roles/{id}:
+    get:
+      summary: Eine Personen-Rolle abrufen
+      tags:
+        - person_roles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID der Personen-Rolle
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Eine einzelne Personen-Rolle
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/person_roles'
 
   # ──────────────────────────────────────────────
   #  ROUTES
@@ -1355,6 +1456,8 @@ components:
         jobs:
           type: array
           description: "Stellenanzeigen (M2M über organizations_jobs)"
+          items:
+            $ref: '#/components/schemas/jobs'
         places:
           type: array
           description: "Zugeordnete Orte (O2M)"
@@ -1362,9 +1465,11 @@ components:
             $ref: '#/components/schemas/places'
         persons:
           type: array
-          description: "Zugeordnete Personen (O2M über junction_organizations_persons)"
+          description: |
+            Zuordnungen zu Personen (O2M → junction_organizations_persons).
+            Jede Zuordnung enthält die Person, Abteilungen, Jobtitel und ob die Person Stellenkontakt ist.
           items:
-            $ref: '#/components/schemas/persons'
+            $ref: '#/components/schemas/junction_organizations_persons'
 
     organizations_translations:
       type: object
@@ -1534,9 +1639,13 @@ components:
         routes:
           type: array
           description: "Routen, die diesen Ort einschließen (M2M über routes_places)"
+          items:
+            $ref: '#/components/schemas/routes'
         jobs:
           type: array
           description: "Stellenanzeigen an diesem Ort (M2M über jobs_places)"
+          items:
+            $ref: '#/components/schemas/jobs'
 
     places_translations:
       type: object
@@ -1748,7 +1857,11 @@ components:
             $ref: '#/components/schemas/persons_translations'
         organizations:
           type: array
-          description: "Zugeordnete Organisationen (O2M über junction_organizations_persons)"
+          description: |
+            Zuordnungen zu Organisationen (O2M → junction_organizations_persons).
+            Jede Zuordnung enthält die Organisation, Abteilungen, Jobtitel und ob die Person Stellenkontakt ist.
+          items:
+            $ref: '#/components/schemas/junction_organizations_persons'
 
     persons_translations:
       type: object
@@ -1766,6 +1879,112 @@ components:
         description:
           type: string
           description: "Beschreibung (HTML) – z.B. für Redner:innen, Künstler:innen"
+
+    # ── DEPARTMENTS ──
+    department:
+      type: object
+      description: "Abteilungen innerhalb von Organisationen. Werden über junction_organizations_persons zugeordnet."
+      properties:
+        id:
+          type: string
+          format: uuid
+        sort:
+          type: integer
+        internal_name:
+          type: string
+          description: Interner Name der Abteilung
+        place:
+          description: "Optionaler Standort der Abteilung (M2O → places)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/places'
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/department_translations'
+
+    department_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        department_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+
+    # ── PERSON ROLES ──
+    person_roles:
+      type: object
+      description: "Rollen, die Personen zugeordnet werden können (z.B. Fotograf, Musiker, Redner)"
+      properties:
+        id:
+          type: string
+          format: uuid
+        translations:
+          type: array
+          items:
+            $ref: '#/components/schemas/person_roles_translations'
+
+    person_roles_translations:
+      type: object
+      properties:
+        id:
+          type: integer
+        person_roles_id:
+          type: string
+          format: uuid
+        languages_code:
+          type: string
+        name:
+          type: string
+
+    # ── JUNCTION: ORGANIZATIONS ↔ PERSONS ──
+    junction_organizations_persons:
+      type: object
+      description: |
+        Zuordnung zwischen Organisationen und Personen.
+        Enthält zusätzliche Kontextinformationen wie Abteilungen, Jobtitel
+        und ob die Person als Stellenkontakt fungiert.
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization:
+          description: "Zugehörige Organisation (M2O → organizations)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/organizations'
+        person:
+          description: "Zugehörige Person (M2O → persons)"
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/persons'
+        is_job_contact:
+          type: boolean
+          description: Gibt an, ob die Person Ansprechpartner für Stellenanzeigen ist
+        sort:
+          type: integer
+          description: Sortierung aus Personen-Sicht
+        sort_org:
+          type: integer
+          description: Sortierung aus Organisations-Sicht
+        departments:
+          type: array
+          description: "Abteilungen dieser Zuordnung (M2M über junction_organizations_persons_department)"
+          items:
+            $ref: '#/components/schemas/department'
+        job_titles:
+          type: array
+          description: "Jobtitel dieser Zuordnung (M2M über junction_organizations_persons_job_titles)"
+          items:
+            $ref: '#/components/schemas/job_titles'
 
     # ── REGIONS ──
     regions:
