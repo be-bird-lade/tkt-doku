@@ -17,6 +17,22 @@ info:
     - `quality` – 1–100 (JPEG/WebP)
     - `format` – `jpg`, `png`, `webp`, `avif`
 
+    ## Bildrechte & Copyright
+    Jede Bilddatei trägt im Feld `credit_line` einen fertig formatierten Copyright-Hinweis
+    (z.B. „Foto: Max Mustermann / TKT"). Dieser muss bei jeder externen Ausspielung
+    mit angegeben werden.
+
+    `credit_line` wird **nicht** über einen separaten Endpunkt abgerufen, sondern ist
+    über die `fields`-Syntax direkt in jede Response eingebettet — egal ob am
+    `featured_image` oder in einer Galerie. Beispiel für Events:
+
+    ```
+    GET /items/events?fields=id,translations.title,featured_image.id,featured_image.credit_line,gallery.directus_files_id.id,gallery.directus_files_id.credit_line
+    ```
+
+    Damit liefert ein **einziger** Event-Request sowohl die Event-Inhalte als auch
+    die Copyright-Hinweise aller verknüpften Bilder.
+
     ## Authentifizierung
     Alle Anfragen erfordern ein Bearer-Token im `Authorization`-Header.
 
@@ -34,6 +50,17 @@ paths:
       description: |
         Gibt alle Hauptevents zurück. Events können vom Typ `event`, `program` oder `tour` sein.
         Enthält Relationen zu Kategorien, Organisationen, Orten, Sprachen, Übersetzungen, Galerien und Guides.
+
+        **Bildrechte / Copyright:** Der Copyright-Hinweis liegt am jeweiligen Bild im Feld
+        `credit_line` (siehe Schema `directus_file`). Er kann per `fields`-Parameter direkt
+        mitgeladen werden — ohne separaten Request gegen einen Bilder-Endpunkt:
+
+        ```
+        ?fields=*,featured_image.id,featured_image.credit_line,gallery.directus_files_id.id,gallery.directus_files_id.credit_line
+        ```
+
+        Für externe Ausspielung (z.B. Partner-Websites) ist `credit_line` verpflichtend
+        mitzurendern.
       tags:
         - events
       parameters:
@@ -84,6 +111,12 @@ paths:
   /items/events/{id}:
     get:
       summary: Ein einzelnes Event abrufen
+      description: |
+        Liefert ein Event inkl. aller Relationen.
+
+        **Bildrechte / Copyright:** Der Copyright-Hinweis wird über `credit_line`
+        am Bild-Schema (`directus_file`) geliefert und kann per `fields`-Parameter
+        direkt mitgeladen werden (siehe Listen-Endpunkt `/items/events`).
       tags:
         - events
       parameters:
@@ -2547,7 +2580,8 @@ components:
     # ── FILES ──
     directus_file:
       type: object
-      description: "Bild-URLs: https://data.tkt-berlin.de/assets/{id}"
+      description: |
+        Bild- und Mediendatei. Bild-URLs: https://data.tkt-berlin.de/assets/{id}
       properties:
         id:
           type: string
@@ -2562,6 +2596,13 @@ components:
           type: integer
         height:
           type: integer
+        credit_line:
+          type: string
+          description: |
+            Bildnachweis / Copyright-Hinweis (z.B. „Foto: Max Mustermann / TKT").
+            Wird serverseitig automatisch aus Fotograf und Quelle generiert.
+            **Pflichtfeld für externe Ausspielung**: Bilder ohne `credit_line`
+            sollten nicht veröffentlicht werden.
 
 servers:
   - url: https://data.tkt-berlin.de
